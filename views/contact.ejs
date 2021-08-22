@@ -1,0 +1,47 @@
+<div class="container">
+  <h1>Data Contacts</h1>
+  <a href="contact/add-contact" class="btn btn-success mt-3"
+    ><i class="bi bi-plus-circle"></i> Add Contact</a
+  >
+  <!-- TABLE -->
+  <table class="table mt-3">
+    <thead>
+      <tr>
+        <th scope="col">No.</th>
+        <th scope="col">Nama</th>
+        <th scope="col">Email</th>
+        <th scope="col">No HP</th>
+        <th scope="col">Aksi</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (contacts.length <= 0) { %>
+      <tr>
+        <td colspan="4">
+          <div class="alert alert-danger fw-bold" role="alert">
+            Data kontak masih kosong <br />
+          </div>
+        </td>
+      </tr>
+      <% } else { %> <% contacts.forEach((contact, i) => { %>
+      <tr>
+        <th scope="row"><%= i+1 %></th>
+        <td><%= contact.name %></td>
+        <td><%= contact.email %></td>
+        <td><%= contact.mPhone %></td>
+        <td>
+          <a
+            href="/contact/edit-data/<%= contact._id %>"
+            class="btn btn-info badge"
+            >Edit</a
+          >
+          <form action="/contact?_method=DELETE" method="POST" class="d-inline">
+            <input type="hidden" name="_id" value="<%= contact._id %>" />
+            <button type="submit" class="btn btn-danger badge">DELETE</button>
+          </form>
+        </td>
+      </tr>
+      <% }) %> <% } %>
+    </tbody>
+  </table>
+</div>
