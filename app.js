@@ -23,6 +23,9 @@ app.use(expressLayouts);
 // req.body
 app.use(express.urlencoded({ extended: true }));
 
+// VALIDATOR
+const { body, validationResult, check } = require("express-validator");
+
 // FLASH MESSAGE
 const session = require("express-session");
 const cookieParser = require("cookie-parser");
@@ -68,7 +71,7 @@ app.get("/contact", async (req, res) => {
   });
 });
 
-// Add-data contact
+// Add-data routes
 app.get("/contact/add-contact", (req, res) => {
   res.render("add-contact", {
     title: "Add contact",
@@ -76,20 +79,51 @@ app.get("/contact/add-contact", (req, res) => {
   });
 });
 
-// Save data contact
-app.post("/contact", (req, res) => {
-  Contact.insertMany(req.body, (error, result) => {
-    req.flash("msg", "Kontak berhasil ditambahkan!");
-    res.redirect("/contact");
-  });
-});
+// Add data contact
+app.post(
+  "/contact",
+  [
+    body("name").custom(async (value) => {
+      const mirror = await Contact.findOne(value);
+      if (mirror) {
+        throw new Error("Nama contact sudah terdaftar");
+      }
+      return true;
+    }),
+    check("email", "Email tidak valid").isEmail(),
+    check("mPhone", "Nomor HP tidak valid").isMobilePhone("id-ID"),
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      // return res.status(400).json({ errors: errors.array() });
+      res.render("add-contact", {
+        title: "Contact",
+        layout: "./layouts/main-layout",
+        errors: errors.array(),
+      });
+    } else {
+      Contact.insertMany(req.body, (error, result) => {
+        // Kirimkan flash message
+        req.flash("msg", "Kontak berhasil ditambahkan!");
+        res.redirect("/contact");
+      });
+    }
+  }
+);
 
 // Delete data contact
-app.delete("/contact", (req, res) => {
-  Contact.deleteOne({ _id: req.body._id }).then((result) => {
-    req.flash("msg", "Kontak berhasil dihapus");
-    res.redirect("/contact");
-  });
+app.delete("/contact", async (req, res) => {
+  const contact = await Contact.findOne({ _id: req.body._id });
+  if (!contact) {
+    res.status(404);
+    res.send(`<h1>Error(404) : File not found!</h1>`);
+  } else {
+    Contact.deleteOne({ _id: contact._id }).then((result) => {
+      req.flash("msg", "Kontak berhasil dihapus");
+      res.redirect("/contact");
+    });
+  }
 });
 
 // Routes edit data
@@ -102,21 +136,47 @@ app.get("/contact/edit-data/:_id", async (req, res) => {
   });
 });
 // Update Data
-app.put("/contact", (req, res) => {
-  Contact.updateOne(
-    { _id: req.body._id },
-    {
-      $set: {
-        name: req.body.name,
-        email: req.body.email,
-        mPhone: req.body.mPhone,
-      },
+
+app.put(
+  "/contact",
+  [
+    body("name").custom((value, { req }) => {
+      const mirror = cekMirror(value);
+      if (value !== req.body.oldName && mirror) {
+        throw new Error("Nama contact sudah terdaftar");
+      }
+      return true;
+    }),
+    check("email", "Email tidak valid").isEmail(),
+    check("mPhone", "Nomor HP tidak valid").isMobilePhone("id-ID"),
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.render("edit-contact", {
+        title: "Edit",
+        layout: "./layouts/main-layout",
+        errors: errors.array(),
+        contact: req.body,
+      });
+    } else {
+      Contact.updateOne(
+        { _id: req.body._id },
+        {
+          $set: {
+            name: req.body.name,
+            email: req.body.email,
+            mPhone: req.body.mPhone,
+          },
+        }
+      ).then((result) => {
+        // Kirimkan flash message
+        req.flash("msg", "Kontak berhasil diubah!");
+        res.redirect("/contact");
+      });
     }
-  ).then((result) => {
-    req.flash("msg", "Data berhasil diubah");
-    res.redirect("/contact");
-  });
-});
+  }
+);
 
 // ***--ROUTER--***
 app.listen(port, () =>
