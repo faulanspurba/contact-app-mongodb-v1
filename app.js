@@ -1,20 +1,36 @@
+// EXPRESS
 const express = require("express");
 const app = express();
 const port = 3000;
 
+// Validator
+const { body, validationResult, check } = require("express-validator");
+
+// DATABASE Connections
+require("./utils/db");
+
+// METHOD-OVERRIDE
 const methodOverride = require("method-override");
 app.use(methodOverride("_method"));
 
-require("./utils/db");
-
+// MODELS
+//contact
 const Contact = require("./models/contact");
 
+// EJS
+app.set("view engine", "ejs");
+
+// EJS Layouts
 const expressLayouts = require("express-ejs-layouts");
-const { body, validationResult, check } = require("express-validator");
+app.use(expressLayouts);
+
+// req.body
+app.use(express.urlencoded({ extended: true }));
+
+// FLASH MESSAGE
 const session = require("express-session");
 const cookieParser = require("cookie-parser");
 const flash = require("connect-flash");
-
 // Konfigurasi flash
 app.use(cookieParser("secret"));
 app.use(
@@ -29,157 +45,84 @@ app.use(
 );
 app.use(flash());
 
-// Menngunakan ejs
-app.set("view engine", "ejs");
-// Third-party middleware
-app.use(expressLayouts);
+// ***--ROUTER--***
 
-// Built-in middleware
-app.use(express.static("public"));
-app.use(express.urlencoded({ extended: true }));
-
-app.get("/", async (req, res) => {
-  const contacts = await Contact.find();
+// Home
+app.get("/", (req, res) => {
   res.render("index", {
     title: "Home",
-    layout: "./layouts/main-layout",
-    contacts,
+    layout: "layouts/main-layout",
   });
 });
-
+// About
 app.get("/about", (req, res) => {
   res.render("about", {
     title: "About",
-    layout: "./layouts/main-layout",
+    layout: "layouts/main-layout",
   });
 });
-
+// Contact
 app.get("/contact", async (req, res) => {
   const contacts = await Contact.find();
-
   res.render("contact", {
     title: "Contact",
-    layout: "./layouts/main-layout",
+    layout: "layouts/main-layout",
     contacts,
     msg: req.flash("msg"),
   });
 });
 
-// Add-data Contact Routes
+// Add-data contact
 app.get("/contact/add", (req, res) => {
   res.render("add-contact", {
-    title: "Add Contact",
-    layout: "./layouts/main-layout",
+    title: "Add contact",
+    layout: "layouts/main-layout",
   });
 });
 
-// Add-data contact Process
-app.post(
-  "/contact",
-  [
-    body("name").custom(async (value) => {
-      const mirror = await Contact.findOne({ name: value });
-      if (mirror) {
-        throw new Error("Nama contact sudah terdaftar");
-      }
-      return true;
-    }),
-    check("email", "Email tidak valid").isEmail(),
-    check("mPhone", "Nomor HP tidak valid").isMobilePhone("id-ID"),
-  ],
-  (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.render("add-contact", {
-        title: "Contact",
-        layout: "./layouts/main-layout",
-        errors: errors.array(),
-      });
-    } else {
-      Contact.insertMany(req.body, (error, result) => {
-        // Kirimkan flash message
-        req.flash("msg", "Kontak berhasil ditambahkan!");
-        res.redirect("/contact");
-      });
-    }
-  }
-);
-
-// Hapus data
-app.delete("/contact", async (req, res) => {
-  const contact = await Contact.findOne({ _id: req.body._id });
-  if (!contact) {
-    res.status(404);
-    res.send(`<h1>404</h1>`);
-  } else {
-    Contact.deleteOne({ _id: contact._id }).then((result) => {
-      // MESSAGE
-      req.flash("msg", "Kontak berhasil dihapus!");
-      res.redirect("/contact");
-    });
-  }
+// Add-data contact process
+app.post("/contact", (req, res) => {
+  Contact.insertMany(req.body, (error, result) => {
+    req.flash("msg", "Kontak berhasil ditambahkan!");
+    res.redirect("/contact");
+  });
 });
 
-// Edit-contact Routes
+// Delete data contact
+app.delete("/contact", (req, res) => {
+  Contact.deleteOne({ _id: req.body._id }).then((result) => {
+    req.flash("msg", "Kontak berhasil dihapus");
+    res.redirect("/contact");
+  });
+});
+
+// Routes edit data
 app.get("/contact/edit/:_id", async (req, res) => {
   const contact = await Contact.findOne({ _id: req.params._id });
   res.render("edit-contact", {
-    title: "Edit Contact",
-    layout: "./layouts/main-layout",
+    title: "Edit",
+    layout: "layouts/main-layout",
     contact,
   });
 });
-
-// Process Edit Data
-app.put(
-  "/contact",
-  [
-    body("name").custom(async (value, { req }) => {
-      const mirror = await Contact.findOne({ name: value });
-      if (value !== req.body.oldName && mirror) {
-        throw new Error("Nama contact sudah terdaftar");
-      }
-      return true;
-    }),
-    check("email", "Email tidak valid").isEmail(),
-    check("mPhone", "Nomor HP tidak valid").isMobilePhone("id-ID"),
-  ],
-  (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      // return res.status(400).json({ errors: errors.array() });
-      res.render("edit-contact", {
-        title: "Edit",
-        layout: "./layouts/main-layout",
-        errors: errors.array(),
-        contact: req.body,
-      });
-    } else {
-      Contact.updateOne(req.body, (error, result) => {
-        // Kirimkan flash message
-        req.flash("msg", "Kontak berhasil diubah!");
-        res.redirect("/contact");
-      });
+// Update Data
+app.put("/contact", (req, res) => {
+  Contact.updateOne(
+    { _id: req.body._id },
+    {
+      $set: {
+        name: req.body.name,
+        email: req.body.email,
+        mPhone: req.body.mPhone,
+      },
     }
-  }
-);
-
-// Halaman detail kontak
-app.get("/contact/:_id", async (req, res) => {
-  const contact = await Contact.findOne({ _id: req.params._id });
-
-  res.render("details", {
-    title: "Detail Contact",
-    layout: "./layouts/main-layout",
-    contact,
+  ).then((result) => {
+    req.flash("msg", "Data berhasil diubah");
+    res.redirect("/contact");
   });
 });
 
-app.use("/", (req, res) => {
-  res.status(404);
-  res.send(`Error : File not found`);
-});
-
+// ***--ROUTER--***
 app.listen(port, () =>
-  console.log(`App listening to http://localhost:${port}`)
+  console.log(`App listening at http://localhost:${port}`)
 );
