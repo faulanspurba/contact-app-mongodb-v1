@@ -3,12 +3,16 @@ const express = require("express");
 const app = express();
 const port = 3000;
 
+// Validator
+const { body, validationResult, check } = require("express-validator");
+
 // DATABASE Connections
 require("./utils/db");
 
 // METHOD-OVERRIDE
 const methodOverride = require("method-override");
 app.use(methodOverride("_method"));
+
 // MODELS
 //contact
 const Contact = require("./models/contact");
@@ -76,7 +80,7 @@ app.get("/contact/add-contact", (req, res) => {
   });
 });
 
-// Save data contact
+// Add-data contact process
 app.post("/contact", (req, res) => {
   Contact.insertMany(req.body, (error, result) => {
     req.flash("msg", "Kontak berhasil ditambahkan!");
