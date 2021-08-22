@@ -72,7 +72,7 @@ app.get("/contact", async (req, res) => {
 });
 
 // Add-data routes
-app.get("/contact/add-contact", (req, res) => {
+app.get("/contact/add", (req, res) => {
   res.render("add-contact", {
     title: "Add contact",
     layout: "layouts/main-layout",
@@ -84,7 +84,7 @@ app.post(
   "/contact",
   [
     body("name").custom(async (value) => {
-      const mirror = await Contact.findOne(value);
+      const mirror = await Contact.findOne({ name: value });
       if (mirror) {
         throw new Error("Nama contact sudah terdaftar");
       }
@@ -96,7 +96,6 @@ app.post(
   (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      // return res.status(400).json({ errors: errors.array() });
       res.render("add-contact", {
         title: "Contact",
         layout: "./layouts/main-layout",
@@ -127,7 +126,7 @@ app.delete("/contact", async (req, res) => {
 });
 
 // Routes edit data
-app.get("/contact/edit-data/:_id", async (req, res) => {
+app.get("/contact/edit/:_id", async (req, res) => {
   const contact = await Contact.findOne({ _id: req.params._id });
   res.render("edit-contact", {
     title: "Edit",
@@ -135,13 +134,13 @@ app.get("/contact/edit-data/:_id", async (req, res) => {
     contact,
   });
 });
-// Update Data
 
+// Update Data
 app.put(
   "/contact",
   [
-    body("name").custom((value, { req }) => {
-      const mirror = cekMirror(value);
+    body("name").custom(async (value, { req }) => {
+      const mirror = await Contact.findOne({ name: value });
       if (value !== req.body.oldName && mirror) {
         throw new Error("Nama contact sudah terdaftar");
       }

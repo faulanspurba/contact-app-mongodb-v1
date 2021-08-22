@@ -8,11 +8,16 @@
         <div class="mb-3">
           <label for="name" class="form-label">Nama</label>
           <input
+            type="hidden"
+            name="oldName"
+            value="<%= contact.oldName|| contact.name%>"
+          />
+          <input
             type="text"
             class="form-control"
             id="name"
             name="name"
-            value="<%= contact.name %> "
+            value="<%= contact.name %>"
           />
         </div>
         <div class="mb-3">
@@ -22,7 +27,7 @@
             class="form-control"
             id="email"
             name="email"
-            value="<%= contact.email %> "
+            value="<%= contact.email %>"
           />
         </div>
         <div class="mb-3">
@@ -32,7 +37,7 @@
             class="form-control"
             id="mPhone"
             name="mPhone"
-            value="<%= contact.mPhone %> "
+            value="<%= contact.mPhone %>"
           />
         </div>
         <button type="submit" class="btn btn-primary mt-4">Submit</button>
