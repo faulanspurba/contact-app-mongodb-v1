@@ -7,7 +7,7 @@ const port = 3000;
 const { body, validationResult, check } = require("express-validator");
 
 // DATABASE Connections
-require("./utils/db");
+require("./server/database/db");
 
 // METHOD-OVERRIDE
 const methodOverride = require("method-override");
@@ -15,7 +15,7 @@ app.use(methodOverride("_method"));
 
 // MODELS
 //contact
-const Contact = require("./models/contact");
+const Contact = require("./server/models/contact");
 
 // EJS
 app.set("view engine", "ejs");
@@ -46,83 +46,98 @@ app.use(
 app.use(flash());
 
 // ***--ROUTER--***
+const render = require("./server/services/render");
 
 // Home
-app.get("/", (req, res) => {
-  res.render("index", {
-    title: "Home",
-    layout: "layouts/main-layout",
-  });
-});
+app.get("/", render.home);
 // About
-app.get("/about", (req, res) => {
-  res.render("about", {
-    title: "About",
-    layout: "layouts/main-layout",
-  });
-});
+app.get("/about", render.about);
 // Contact
-app.get("/contact", async (req, res) => {
-  const contacts = await Contact.find();
-  res.render("contact", {
-    title: "Contact",
-    layout: "layouts/main-layout",
-    contacts,
-    msg: req.flash("msg"),
-  });
-});
+app.get("/contact", render.contact);
 
-// Add-data contact
-app.get("/contact/add-contact", (req, res) => {
-  res.render("add-contact", {
-    title: "Add contact",
-    layout: "layouts/main-layout",
-  });
-});
+// Add-data contact Routes
+app.get("/contact/add", render.add_contact);
 
-// Add-data contact process
-app.post("/contact", (req, res) => {
-  Contact.insertMany(req.body, (error, result) => {
-    req.flash("msg", "Kontak berhasil ditambahkan!");
-    res.redirect("/contact");
-  });
-});
-
-// Delete data contact
-app.delete("/contact", (req, res) => {
-  Contact.deleteOne({ _id: req.body._id }).then((result) => {
-    req.flash("msg", "Kontak berhasil dihapus");
-    res.redirect("/contact");
-  });
-});
-
-// Routes edit data
-app.get("/contact/edit-data/:_id", async (req, res) => {
-  const contact = await Contact.findOne({ _id: req.params._id });
-  res.render("edit-contact", {
-    title: "Edit",
-    layout: "layouts/main-layout",
-    contact,
-  });
-});
-// Update Data
-app.put("/contact", (req, res) => {
-  Contact.updateOne(
-    { _id: req.body._id },
-    {
-      $set: {
-        name: req.body.name,
-        email: req.body.email,
-        mPhone: req.body.mPhone,
-      },
-    }
-  ).then((result) => {
-    req.flash("msg", "Data berhasil diubah");
-    res.redirect("/contact");
-  });
-});
+// Edit-data Routes
+app.get("/contact/edit/:_id", render.edit_contact);
 
 // ***--ROUTER--***
+const action = require("./server/services/action");
+// Add-data contact process
+app.post(
+  "/contact",
+  [
+    body("name").custom(async (value) => {
+      const mirror = await Contact.findOne({ name: value });
+      if (mirror) {
+        throw new Error("Nama contact sudah terdaftar");
+      }
+      return true;
+    }),
+    check("email", "Email anda tidak valid").isEmail(),
+    check("mPhone", "Nomor HP anda tidak valid").isMobilePhone("id-ID"),
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.render("add-contact", {
+        title: "Contact",
+        layout: "./layouts/main-layout",
+        errors: errors.array(),
+      });
+    } else {
+      Contact.insertMany(req.body, (error, result) => {
+        req.flash("msg", "Kontak berhasil ditambahkan!");
+        res.redirect("/contact");
+      });
+    }
+  }
+);
+
+// Update Data
+app.put(
+  "/contact",
+  [
+    body("name").custom(async (value, { req }) => {
+      const mirror = await Contact.findOne({ name: value });
+      if (value !== req.body.oldName && mirror) {
+        throw new Error("Nama contact sudah terdaftar");
+      }
+      return true;
+    }),
+    check("email", "Email tidak valid").isEmail(),
+    check("mPhone", "Nomor HP tidak valid").isMobilePhone("id-ID"),
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.render("edit-contact", {
+        title: "Edit",
+        layout: "./layouts/main-layout",
+        contact: req.body,
+        errors: errors.array(),
+      });
+    } else {
+      Contact.updateOne(
+        { _id: req.body._id },
+        {
+          $set: {
+            name: req.body.name,
+            email: req.body.email,
+            mPhone: req.body.mPhone,
+          },
+        }
+      ).then((result) => {
+        req.flash("msg", "Data berhasil diubah");
+        res.redirect("/contact");
+      });
+    }
+  }
+);
+
+// Delete data contact
+app.delete("/contact", action.delete);
+
 app.listen(port, () =>
   console.log(`App listening at http://localhost:${port}`)
 );
