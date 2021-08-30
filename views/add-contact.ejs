@@ -3,7 +3,7 @@
     <div class="col-md-6">
       <h2>Add Contact Data</h2>
 
-      <% if (errors.length !== 0 ) { %>
+      <% if (typeof errors != 'undefined') { %>
       <div class="alert alert-danger fw-bold mt-3" role="alert">
         <% errors.forEach(err => { %>
         <li><%= err.msg %></li>
